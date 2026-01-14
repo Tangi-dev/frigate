@@ -1,0 +1,164 @@
+<div class="container">
+    <h1>📋 Перечень плановых проверок</h1>
+    <div *ngIf="isLoading" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Загрузка данных...</p>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h3>🔍 Поиск проверок</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Наименование СМП</label>
+                    <input type="text" [(ngModel)]="search.smpName" class="form-control"
+                           placeholder="Введите название СМП">
+                </div>
+
+                <div class="form-group">
+                    <label>Контролирующий орган</label>
+                    <input type="text" [(ngModel)]="search.controllingAuthority" class="form-control"
+                           placeholder="Введите орган">
+                </div>
+
+                <div class="form-group">
+                    <label>Период проверки с</label>
+                    <div class="date-input-group">
+                        <input type="date" [(ngModel)]="search.startDate" class="form-control">
+                        <span class="date-separator">по</span>
+                        <input type="date" [(ngModel)]="search.endDate" class="form-control">
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button (click)="clearFilters()" class="btn btn-secondary">
+                    <span>🗑️</span> Очистить
+                </button>
+                <button (click)="applyFilter()" class="btn btn-primary">
+                    <span>🔍</span> Найти
+                </button>
+                <button (click)="refreshData()" class="btn btn-info">
+                    <span>🔄</span> Обновить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>№</th>
+                <th>Номер проверки</th>
+                <th>Проверяемый СМП</th>
+                <th>ИНН</th>
+                <th>Контролирующий орган</th>
+                <th>Период проверки</th>
+                <th>Длительность</th>
+                <th>Статус</th>
+                <th class="actions-column">Действия</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr *ngFor="let inspection of displayedInspections; let i = index">
+                <td>{{ (pager.currentPage - 1) * pager.perPage + i + 1 }}</td>
+                <td>
+                    <strong class="text-primary">{{ inspection.inspection_number }}</strong>
+                </td>
+                <td>
+                    <div class="smp-info">
+                        <strong>{{ inspection.smp_name }}</strong>
+                        <small class="text-muted d-block">ID: {{ inspection.id }}</small>
+                    </div>
+                </td>
+                <td>{{ inspection.smp_inn }}</td>
+                <td>{{ inspection.controlling_authority }}</td>
+                <td>
+                    <div class="date-range">
+                        <div class="date-start">{{ formatDate(inspection.start_date) }}</div>
+                        <div class="date-separator-small">—</div>
+                        <div class="date-end">{{ formatDate(inspection.end_date) }}</div>
+                    </div>
+                </td>
+                <td>
+                    <span class="duration-badge" [class]="getDurationClass(inspection.planned_duration)">
+                        {{ inspection.planned_duration }} {{ getDaysText(inspection.planned_duration) }}
+                    </span>
+                </td>
+                <td>
+                    <span class="status-badge" [class]="getStatusClass(inspection.status)">
+                        {{ getStatusText(inspection.status) }}
+                    </span>
+                </td>
+                <td class="actions-cell">
+                    <div class="action-buttons">
+                        <button (click)="editInspection(inspection)" class="btn-action btn-edit-action"
+                                title="Редактировать">
+                            ✏️
+                        </button>
+                        <button (click)="deleteInspection(inspection.id)" class="btn-action btn-delete-action"
+                                title="Удалить">
+                            🗑️
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            <tr *ngIf="displayedInspections.length === 0 && !isLoading">
+                <td colspan="10" class="no-data">
+                    <div class="empty-state">
+                        <span>📭</span>
+                        <p>По вашему запросу проверок не найдено</p>
+                        <div class="empty-actions">
+                            <button (click)="clearFilters()" class="btn btn-primary">
+                                Сбросить фильтры
+                            </button>
+                            <button (click)="refreshData()" class="btn btn-success">
+                                Загрузить все данные
+                            </button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination-info" *ngIf="pager">
+        <div class="pagination-stats">
+            Показано {{ displayedInspections.length }} из {{ pager.totalItems }} записей
+            <span *ngIf="search.smpName || search.controllingAuthority" class="text-muted">
+                • Фильтр активен
+            </span>
+        </div>
+        <div class="pagination-controls">
+            <button (click)="changePage(pager.currentPage - 1)" [disabled]="pager.currentPage <= 1"
+                    class="btn-pagination">
+                ← Назад
+            </button>
+            <span class="page-info">
+                Страница {{ pager.currentPage }} из {{ pager.totalPages }}
+            </span>
+            <button (click)="changePage(pager.currentPage + 1)"
+                    [disabled]="pager.currentPage >= pager.totalPages" class="btn-pagination">
+                Вперед →
+            </button>
+            <select [(ngModel)]="pager.perPage" (change)="changePerPage()" class="page-select">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="actions-footer">
+        <button (click)="addInspection()" class="btn btn-success">Добавить проверку</button>
+        <div class="actions-footer-right">
+            <button (click)="exportToExcel()" [disabled]="displayedInspections.length === 0"
+                    class="btn btn-outline-success">Экспорт в Excel</button>
+            <button (click)="importExcel()" class="btn btn-info ml-2">Импорт в Excel</button>
+            <button (click)="downloadTemplate()" class="btn btn-info ml-2">Скачать шалблон</button>
+        </div>
+    </div>
+</div>
